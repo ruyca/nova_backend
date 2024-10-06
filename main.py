@@ -7,6 +7,7 @@ from typing import Any
 from openai_logic import query_chatgpt, voice_response, query_chatgpt2
 from pydub import AudioSegment
 from pydub.playback import play
+import socketio
 
 # Whisper available models
 AVAILABLE_MODELS = ["tiny", "base", "small", "medium", "large", "turbo"]
@@ -19,6 +20,16 @@ RECORD_SECONDS = 5      # Duration of the recording
 # constants used for naming the recorded audio
 CUR_DIR = os.getcwd()
 
+
+# Initialize Socket.IO client
+sio = socketio.Client()
+
+# Connect to the Flask WebSocket server
+try:
+    sio.connect('http://localhost:5000')
+    print("Connected to WebSocket server")
+except Exception as e:
+    print(f"Failed to connect to WebSocket server: {e}")
 
 
 def load_model(model: str) -> Any:
@@ -104,7 +115,18 @@ def spacebar_was_pressed(model_instance):
     # Transcription of the recorded audio
     print(f'audio trans\n{audio_trans}')
     # Get more information about the planet the user asked for
-    msg_info = query_chatgpt(celestial_body=audio_trans)
+    celestial_body, msg_info = query_chatgpt(celestial_body=audio_trans)
+
+    # send via socket 
+    if celestial_body:
+        try:
+            # Emit the celestial body to the WebSocket server
+            sio.emit('celestial_body_selected', {'body': celestial_body})
+            print(f"Sent celestial body: {celestial_body} to frontend")
+        except Exception as e:
+            print(f"Failed to send celestial body: {e}")
+
+
     # audio response from the Nova model
     audio_response_path = voice_response(msg_info=msg_info)
 

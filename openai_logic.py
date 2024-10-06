@@ -4,6 +4,9 @@ from openai import OpenAI
 from datetime import datetime
 from random import choice
 import os
+import ast
+import re
+
 
 # load env variables 
 load_dotenv()
@@ -26,19 +29,29 @@ def query_chatgpt(**kwargs):
             about celestial bodies. You explain the information in a short but \
             insightful way. Only respond with brief but insightful manner. The \
             user will tell you one celestial body on which you must provide the info.\
-            Your answer shouldn't be any longer than 2 sentences."},
+            Your answer shouldn't be any longer than 2 sentences. The answer should be \
+            in a python dicationary, where [celestial_body]:[celestial_body] is the \
+            key-value pair of the celestial body the user is talking about. \
+            The other key-value pair should be the information: [info]:[your_response]"},
         {"role": "user", "content": f"Tell me about {celestial_body}"}
     ]
     )
 
+    content = completion.choices[0].message.content
+    content_cleaned = re.sub(r'```(?:python)?|```', '', content).strip()
+
     know_more = choice(OPTIONS)
+    
+    response_dict = ast.literal_eval(content_cleaned)
 
-    message = completion.choices[0].message.content
-    message += know_more
+    # Extract celestial body and info
+    celestial_body = response_dict["celestial_body"]
+    info = response_dict["info"]
+    info += know_more
 
-    print(f"\n\n{message}\n\n")
+    print(f"\n\n\n{info}")
 
-    return message
+    return celestial_body, info
 
 def voice_response(**kwargs):
     print("THIS FUNCTION WAS RUUUHN")
@@ -102,3 +115,4 @@ def query_chatgpt2(**kwargs):
     return message
 
 
+query_chatgpt(celestial_body="Tell me about the planet Earth")
