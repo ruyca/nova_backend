@@ -8,7 +8,7 @@ import os
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 NASA_API_KEY = os.environ.get("NASA_API_KEY")
 
@@ -49,7 +49,10 @@ def handle_asteroid_selection(data):
 ## new code
 @socketio.on("celestial_body_selected")
 def handle_celestial_body(data):
+    print("Se ejecuta nova")
+    print(data)
     # Emit the selected celestial body to all connected clients
+    print("update_celestial_body", {"body": data["body"]})
     emit("update_celestial_body", {"body": data["body"]}, broadcast=True)
 
 

@@ -45,7 +45,7 @@ def query_chatgpt(**kwargs):
     response_dict = ast.literal_eval(content_cleaned)
 
     # Extract celestial body and info
-    celestial_body = response_dict["celestial_body"]
+    celestial_body = response_dict.get("celestial_body", None)
     info = response_dict["info"]
     info += know_more
 
@@ -59,6 +59,8 @@ def voice_response(**kwargs):
     client = OpenAI(api_key=OPENAI_KEY)
 
     input_msg = kwargs["msg_info"]
+
+    print(f"INPUT MSG FROM VOICE RESPONSE:\n{input_msg}")
 
     # Create the speech response from the input
     response = client.audio.speech.create(
@@ -115,4 +117,3 @@ def query_chatgpt2(**kwargs):
     return message
 
 
-query_chatgpt(celestial_body="Tell me about the planet Earth")

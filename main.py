@@ -21,15 +21,33 @@ RECORD_SECONDS = 5      # Duration of the recording
 CUR_DIR = os.getcwd()
 
 
-# Initialize Socket.IO client
-sio = socketio.Client()
+sio = socketio.Client(logger=True, engineio_logger=True)
 
-# Connect to the Flask WebSocket server
-try:
-    sio.connect('http://localhost:5000')
+@sio.event
+def connect():
     print("Connected to WebSocket server")
-except Exception as e:
-    print(f"Failed to connect to WebSocket server: {e}")
+
+@sio.event
+def connect_error(data):
+    print(f"Connection failed: {data}")
+
+@sio.event
+def disconnect():
+    print("Disconnected from WebSocket server")
+
+
+def connect_to_socket():
+    retries = 3
+    for i in range(retries):
+        try:
+            if not sio.connected:
+                sio.connect('http://localhost:5000', wait_timeout=10)
+                return True
+        except Exception as e:
+            print(f"Connection attempt {i+1} failed: {e}")
+            if i < retries - 1:  # Don't sleep after the last attempt
+                time.sleep(2)
+    return False
 
 
 def load_model(model: str) -> Any:
@@ -106,18 +124,26 @@ def stream_audio():
 
     return file_path
 
+def extract_celestial_body(text):
+    # This is a simple example. You might need more sophisticated logic
+    celestial_bodies = ['mercury', 'venus', 'earth', 'moon', 'mars', 
+                        'jupiter', 'saturn', 'uranus', 'neptune', 'sun']
+    
+    for body in celestial_bodies:
+        if body in text:
+            return body
+        
+    
+    return None
 
 def spacebar_was_pressed(model_instance):
-
     file_path = stream_audio()
-
     audio_trans = transcribe_audio(model_instance, file_path)
-    # Transcription of the recorded audio
-    print(f'audio trans\n{audio_trans}')
-    # Get more information about the planet the user asked for
-    celestial_body, msg_info = query_chatgpt(celestial_body=audio_trans)
-
-    # send via socket 
+    print(f"AUDIO TRANS:\n{audio_trans}")
+    # Extract the celestial body from the transcription
+    # You might need to implement logic to extract the specific celestial body name
+    celestial_body = extract_celestial_body(audio_trans.lower())
+    print(celestial_body)
     if celestial_body:
         try:
             # Emit the celestial body to the WebSocket server
@@ -126,30 +152,15 @@ def spacebar_was_pressed(model_instance):
         except Exception as e:
             print(f"Failed to send celestial body: {e}")
 
-
-    # audio response from the Nova model
+    # Continue with your existing logic
+    celestial_body, msg_info = query_chatgpt(celestial_body=audio_trans)
     audio_response_path = voice_response(msg_info=msg_info)
-
-    # plays the audio response
     play_audio(audio_response_path)
 
-    # Audio was played, waiting for user for more information (Y/N)
-    
-    knowMore_path = stream_audio()
-    # The string of the user's response. Contains either Yes/No
-    knowMore_trans = transcribe_audio(model_instance, knowMore_path) 
-
-    msg_respone = query_chatgpt2(user_answer=knowMore_trans, 
-                                previous_ans=msg_info)
-    
-    response_path = voice_response(msg_info=msg_respone)
-    play_audio(response_path)
-
-
-
-
+    #
 
 def run():
+    connect_to_socket()
     # loads the whisper model once
     model_instance = load_model(MODEL)
     play_audio("agent_answers\prerecorded\intro2_fav.wav")
